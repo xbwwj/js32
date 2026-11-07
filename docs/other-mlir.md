@@ -30,3 +30,11 @@ We learned a lot about MLIR usage from these projects.
 The following are notes on some highlight ones.
 
 ## JSIR
+
+JSIR is mainly used for decompilation (Hermes bytecode) and deobfuscation.
+
+The direction: js -> babel -> ast -> jsir/jshir -> MLIR transforms and analysis -> jsir/hshir -> ast -> js.
+
+Some of its IR design seem to be weird (e.g. `jsir.identifier` and `jsir.identifier_ref`).
+
+Only a `jsir.any` type is used.
