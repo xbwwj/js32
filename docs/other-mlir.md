@@ -19,8 +19,6 @@ We learned a lot about MLIR usage from these projects.
   - [filia](https://github.com/SRI-CSL/filia) also js
 - JS
   - [jsir](https://github.com/google/jsir)
-  - [aho/aot](https://github.com/iho/typescript-aot-native-compiler)
-  - [tstz](https://github.com/woxjro/tstz)
 - Java
   - [openjdk/babylon](https://github.com/openjdk/babylon)
   - [bruno-ah-um/tosa](https://github.com/bruno-ah-um/openjdk-babylon-mlir-tosa)
