@@ -1,0 +1,3 @@
+[workspace]
+resolver = "2"
+members = ["crates/js-dialect", "crates/js-export", "crates/js-import", "crates/js32-opt", "crates/mir-dialect", "crates/mir-import", "crates/mir-lower", "crates/rustc-codegen-js"]
