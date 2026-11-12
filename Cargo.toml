@@ -1,16 +1,19 @@
 [workspace]
 resolver = "2"
 members = [
-  "crates/cargo-js",
-  "crates/jsld",
-  "crates/js-dialect",
-  "crates/js-export",
-  "crates/js-import",
-  "crates/js-transform",
-  "crates/mir-dialect",
-  "crates/mir-import",
-  "crates/mir-lower",
-  "crates/rustc-codegen-js"
+  "compiler/cargo-js",
+  "compiler/jsld",
+  "compiler/js-dialect",
+  "compiler/js-export",
+  "compiler/js-import",
+  "compiler/js-transform",
+  "compiler/mir-dialect",
+  "compiler/mir-import",
+  "compiler/mir-lower",
+  "compiler/rustc-codegen-js",
+  "library/js32-sys",
+  "library/web32-sys",
+  "library/js32-macros"
 ]
 
 [workspace.dependencies]
