@@ -9,6 +9,14 @@ use pliron::{
     derive::pliron_op,
 };
 
+pub mod class;
+pub mod control_flow;
+pub mod declaration;
+pub mod directive;
+pub mod expression;
+pub mod function;
+pub mod statement;
+
 use crate::types::JsAnyType;
 
 /// `js.program` have two regions, which are directives and body.
