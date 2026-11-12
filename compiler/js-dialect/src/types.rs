@@ -1,41 +1,78 @@
 use pliron::{
-    common_traits::Verify, context::Context, derive::pliron_type, location::Location,
-    r#type::TypeHandle, verify_err,
+    common_traits::Verify,
+    context::Context,
+    derive::{CloneIntoContext, format, pliron_type},
+    identifier::Identifier,
+    location::Location,
+    r#type::TypeHandle,
+    verify_err,
 };
 
-#[pliron_type(name = "js.any", format, verifier = "succ")]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct JsAnyType {}
+macro_rules! js_primitive_type {
+    ($jsty:tt, $mnem:literal) => {
+        #[pliron_type(name = $mnem, format, verifier = "succ")]
+        #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+        pub struct $jsty;
+    };
+}
 
-#[pliron_type(name = "js.undefined", format, verifier = "succ")]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct JsUndefinedType {}
+js_primitive_type!(JsUndefinedType, "js.undefined");
+js_primitive_type!(JsNullType, "js.null");
+js_primitive_type!(JsBooleanType, "js.boolean");
+js_primitive_type!(JsNumberType, "js.number");
+js_primitive_type!(JsBigIntType, "js.bigint");
+js_primitive_type!(JsStringType, "js.string");
+js_primitive_type!(JsSymbolType, "js.symbol");
+js_primitive_type!(JsObjectType, "js.object");
+js_primitive_type!(JsFunctionType, "js.function");
 
-#[pliron_type(name = "js.null", format, verifier = "succ")]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct JsNullType {}
+js_primitive_type!(JsAnyType, "js.any");
+js_primitive_type!(JsUnknownType, "js.unknown");
+js_primitive_type!(JsNeverType, "js.never");
+js_primitive_type!(JsVoidType, "js.void");
 
-#[pliron_type(name = "js.boolean", format, verifier = "succ")]
+#[pliron_type(name = "js.array", format = "$element `[]`", verifier = "succ")]
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct JsBooleanType {}
+pub struct JsArrayType {
+    pub element: TypeHandle,
+}
 
-#[pliron_type(name = "js.number", format, verifier = "succ")]
+#[format("`, ...` $0")]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, CloneIntoContext)]
+pub struct JsRestParam(TypeHandle);
+
+impl From<TypeHandle> for JsRestParam {
+    fn from(ty: TypeHandle) -> Self {
+        Self(ty)
+    }
+}
+
+/// The typed js function type, compared to untyped `js.function`.
+#[pliron_type(
+    name = "js.fn",
+    format = "`(` vec($params, CharSpace(`,`)) opt($rest) `) => ` $ret",
+    verifier = "succ"
+)]
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct JsNumberType {}
+pub struct JsFnType {
+    pub params: Vec<TypeHandle>,
+    pub rest: Option<JsRestParam>,
+    pub ret: TypeHandle,
+}
 
-#[pliron_type(name = "js.bigint", format, verifier = "succ")]
+/// Tuple type in typescript, like `number | bigint`.
+///
+/// We do not verify unification here, as it does not belong to representation level.
+#[pliron_type(
+    name = "js.tuple",
+    format = "`[` vec($types, CharSpace(`,`)) `]`",
+    verifier = "succ"
+)]
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct JsBigIntType {}
+pub struct JsTupleType {
+    pub types: Vec<TypeHandle>,
+}
 
-#[pliron_type(name = "js.string", format, verifier = "succ")]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct JsStringType {}
-
-#[pliron_type(name = "js.symbol", format, verifier = "succ")]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct JsSymbolType {}
-
-// TODO: formalization of union type.
 #[pliron_type(name = "js.union", format = "`<` vec($types, CharSpace(`,`)) `>`")]
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct JsUnionType {
@@ -50,6 +87,50 @@ impl Verify for JsUnionType {
                 "JsUnionType must contain at least two types"
             );
         }
+        Ok(())
+    }
+}
+
+#[format("$name ` : ` $ty")]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, CloneIntoContext)]
+pub struct JsRecordField {
+    // TODO: we should further allow symbol, keyed, spread, optional, etc.
+    pub name: Identifier,
+    pub ty: TypeHandle,
+}
+
+#[pliron_type(
+    name = "js.record",
+    format = "`<` `{` vec($fields, CharSpace(`,`)) `}` `>`"
+)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, CloneIntoContext)]
+pub struct JsRecordType {
+    pub fields: Vec<JsRecordField>,
+}
+
+impl JsRecordType {
+    pub fn new(mut fields: Vec<JsRecordField>) -> Self {
+        fields.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+        Self { fields }
+    }
+}
+
+impl Verify for JsRecordType {
+    fn verify(&self, ctx: &Context) -> pliron::result::Result<()> {
+        // Fields must be sorted and unique.
+        for pair in self.fields.windows(2) {
+            if pair[0].name.cmp(&pair[1].name) != core::cmp::Ordering::Less {
+                return verify_err!(
+                    Location::Unknown,
+                    "js.record fields must be sorted and unique"
+                );
+            }
+        }
+
+        for field in &self.fields {
+            field.ty.verify(ctx)?;
+        }
+
         Ok(())
     }
 }
@@ -69,7 +150,7 @@ mod tests {
         macro_rules! case {
             ($jsty:tt, $s:literal) => {{
                 // Serialize
-                let ty = $jsty::instantiate($jsty {}, &ctx).to_handle();
+                let ty = $jsty::instantiate($jsty, &ctx).to_handle();
                 let serialized = ty.disp(&ctx).to_string();
                 assert_eq!(serialized.trim(), $s);
 
@@ -85,6 +166,55 @@ mod tests {
         case!(JsBigIntType, "js.bigint");
         case!(JsStringType, "js.string");
         case!(JsSymbolType, "js.symbol");
+        case!(JsObjectType, "js.object");
+        case!(JsFunctionType, "js.function");
+        case!(JsAnyType, "js.any");
+        case!(JsUnknownType, "js.unknown");
+        case!(JsNeverType, "js.never");
+        case!(JsVoidType, "js.void");
+    }
+
+    #[test]
+    fn test_fn_type_serialization() {
+        let ctx = Context::new();
+
+        let number_ty = JsNumberType::instantiate(JsNumberType {}, &ctx).to_handle();
+        let string_ty = JsStringType::instantiate(JsStringType {}, &ctx).to_handle();
+
+        let ty = JsFnType::instantiate(
+            JsFnType {
+                params: vec![string_ty.into(), number_ty.into()],
+                rest: Some(string_ty.into()),
+                ret: string_ty,
+            },
+            &ctx,
+        )
+        .to_handle();
+
+        let serialized = ty.disp(&ctx).to_string();
+        assert_eq!(
+            serialized.trim(),
+            "js.fn (js.string , js.number , ...js.string ) => js.string"
+        );
+    }
+
+    #[test]
+    fn test_tuple_type_serialization() {
+        let ctx = Context::new();
+
+        let number_ty = JsNumberType::instantiate(JsNumberType {}, &ctx).to_handle();
+        let string_ty = JsStringType::instantiate(JsStringType {}, &ctx).to_handle();
+
+        let ty = JsTupleType::instantiate(
+            JsTupleType {
+                types: vec![number_ty, string_ty],
+            },
+            &ctx,
+        )
+        .to_handle();
+
+        let serialized = ty.disp(&ctx).to_string();
+        assert_eq!(serialized.trim(), "js.tuple [js.number , js.string ]");
     }
 
     #[test]
@@ -105,5 +235,37 @@ mod tests {
         let serialized = ty.disp(&ctx).to_string();
         // TODO: union seem to have extra space here. tolerate for now.
         assert_eq!(serialized.trim(), "js.union <js.number , js.string >");
+    }
+
+    #[test]
+    fn test_record_type_serialization() {
+        let ctx = Context::new();
+
+        let number_ty = JsNumberType::instantiate(JsNumberType {}, &ctx).to_handle();
+        let string_ty = JsStringType::instantiate(JsStringType {}, &ctx).to_handle();
+
+        let ty = JsRecordType::instantiate(
+            JsRecordType {
+                fields: vec![
+                    JsRecordField {
+                        name: pliron::ident!("name"),
+                        ty: string_ty,
+                    },
+                    JsRecordField {
+                        name: pliron::ident!("age"),
+                        ty: number_ty,
+                    },
+                ],
+            },
+            &ctx,
+        )
+        .to_handle();
+
+        let serialized = ty.disp(&ctx).to_string();
+
+        assert_eq!(
+            serialized.trim(),
+            "js.record <{name : js.string , age : js.number }>"
+        );
     }
 }
