@@ -116,7 +116,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
-name = "cargo-js32"
+name = "cargo-js"
 version = "0.1.0"
 
 [[package]]
@@ -223,11 +223,27 @@ name = "js-import"
 version = "0.1.0"
 
 [[package]]
-name = "js-transform"
+name = "js32-dialect"
 version = "0.1.0"
 
 [[package]]
-name = "js32-linker"
+name = "js32-lower"
+version = "0.1.0"
+
+[[package]]
+name = "js32-macros"
+version = "0.1.0"
+
+[[package]]
+name = "js32-sys"
+version = "0.1.0"
+
+[[package]]
+name = "js32-transform"
+version = "0.1.0"
+
+[[package]]
+name = "jsld"
 version = "0.1.0"
 
 [[package]]
@@ -519,6 +535,10 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "web32-sys"
+version = "0.1.0"
 
 [[package]]
 name = "wide"
