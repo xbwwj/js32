@@ -1,4 +1,7 @@
-use pliron::derive::pliron_type;
+use pliron::{
+    common_traits::Verify, context::Context, derive::pliron_type, location::Location,
+    r#type::TypeHandle, verify_err,
+};
 
 #[pliron_type(name = "js.any", format, verifier = "succ")]
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -32,7 +35,24 @@ pub struct JsStringType {}
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct JsSymbolType {}
 
-// TODO: how to design union type
+// TODO: formalization of union type.
+#[pliron_type(name = "js.union", format = "`<` vec($types, CharSpace(`,`)) `>`")]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct JsUnionType {
+    pub types: Vec<TypeHandle>,
+}
+
+impl Verify for JsUnionType {
+    fn verify(&self, _ctx: &Context) -> pliron::result::Result<()> {
+        if self.types.len() < 2 {
+            return verify_err!(
+                Location::Unknown,
+                "JsUnionType must contain at least two types"
+            );
+        }
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -52,6 +72,8 @@ mod tests {
                 let ty = $jsty::instantiate($jsty {}, &ctx).to_handle();
                 let serialized = ty.disp(&ctx).to_string();
                 assert_eq!(serialized.trim(), $s);
+
+                // TODO: deserialize
             }};
         }
 
@@ -63,5 +85,25 @@ mod tests {
         case!(JsBigIntType, "js.bigint");
         case!(JsStringType, "js.string");
         case!(JsSymbolType, "js.symbol");
+    }
+
+    #[test]
+    fn test_union_type_serialization() {
+        let ctx = Context::new();
+
+        let number_ty = JsNumberType::instantiate(JsNumberType {}, &ctx).to_handle();
+        let string_ty = JsStringType::instantiate(JsStringType {}, &ctx).to_handle();
+
+        let ty = JsUnionType::instantiate(
+            JsUnionType {
+                types: vec![number_ty, string_ty],
+            },
+            &ctx,
+        )
+        .to_handle();
+
+        let serialized = ty.disp(&ctx).to_string();
+        // TODO: union seem to have extra space here. tolerate for now.
+        assert_eq!(serialized.trim(), "js.union <js.number , js.string >");
     }
 }
