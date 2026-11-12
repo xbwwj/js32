@@ -1,12 +1,12 @@
 [workspace]
 resolver = "2"
 members = [
-  "crates/cargo-js32",
+  "crates/cargo-js",
+  "crates/jsld",
   "crates/js-dialect",
   "crates/js-export",
   "crates/js-import",
   "crates/js-transform",
-  "crates/js32-linker",
   "crates/mir-dialect",
   "crates/mir-import",
   "crates/mir-lower",

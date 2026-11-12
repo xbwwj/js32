@@ -1,5 +1,5 @@
 [package]
-name = "js32-linker"
+name = "jsld"
 version = "0.1.0"
 edition = "2024"
 
